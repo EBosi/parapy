@@ -9,37 +9,19 @@ import os,sys,itertools,multithreading,shutil
 
 def cpy_inparanoid(thread_dir):
 	# list of files (ls -rt | awk '{print "\"" $9 "\"" ","}')
-	files=["accessory_finder_multipara.pl",
-	"all_genomes_DB",
-	"antarctic_files",
-	"blast_parser.pl",
+	files=[	"blast_parser.pl",
 	"blosum45",
 	"blosum62",
 	"blosum80",
-	"conversion_table.txt",
 	"ec",
-	"error.log",
-	"fasta_on_the_fly.pl",
 	"fasta_parser.log",
 	"fasta_parser_parapipe.pl",
-	"formatdb.log",
 	"inparanoid.pl",
-	"input_list_NCBI",
-	"input_prots_antarctic",
 	"insert_NCBI_title.pl",
 	"licence",
-	"list_of_faa_files",
-	"multiparanoid.pl",
-	"multiparanoid.pl~",
-	"multipara_seq_retriever_groups.pl",
-	"multipara_seq_retriever.pl",
 	"pam30",
 	"pam70",
-	"parapipe_NOBLAST.pl",
-	"parapipe.pl",
-	"parsoid_parapipe.pl",
 	"parsoid.pl",
-	"readme",
 	"sc",
 	"seqstat.jar",
 	"seqstat_old.jar"]
@@ -126,44 +108,21 @@ class InparanoidTask(object):
 
 #######################
 
-numb_threads=5
-
-if __name__ == '__main__':
-    jobs = []
-    for i in range(numb_threads):
-        p = multiprocessing.Process(target=worker)
-        jobs.append(p)
-        p.start()
+# Insert Options/ Options parsing here!
+# (to implement)
 
 #######################
 
-if __name__ == '__main__':
-    # Establish communication queues
-    tasks = multiprocessing.JoinableQueue()
-    results = multiprocessing.Queue()
-    
-    # Start consumers
-    num_consumers = multiprocessing.cpu_count() * 2
-    print 'Creating %d consumers' % num_consumers
-    consumers = [ Consumer(tasks, results)
-                  for i in xrange(num_consumers) ]
-    for w in consumers:
-        w.start()
-    
-    # Enqueue jobs
-    num_jobs = 10
-    for i in xrange(num_jobs):
-        tasks.put(Task(i, i))
-    
-    # Add a poison pill for each consumer
-    for i in xrange(num_consumers):
-        tasks.put(None)
+numb_consumers=5
 
-    # Wait for all of the tasks to finish
-    tasks.join()
-    
-    # Start printing results
-    while num_jobs:
-        result = results.get()
-        print 'Result:', result
-        num_jobs -= 1
+
+# real main, still to implement
+if __name__ == '__main__':
+	# enqueue jobs
+	jobs = []
+	for i in range(numb_threads):
+		p = multiprocessing.Process(target=worker)
+		jobs.append(p)
+		p.start()
+
+#######################
