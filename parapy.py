@@ -3,7 +3,7 @@ usage = """
 """
 #######################
 
-import os,sys,itertools,multithreading,shutil
+import os,sys,itertools,multiprocessing,shutil
 
 #######################
 
