@@ -108,7 +108,7 @@ class InparanoidTask(object):
 num_consumers=5
 # num_consumers = multiprocessing.cpu_count() * 2
 main='.'
-genome_dir='Scrivania/genomes/'
+genome_dir='/home/emanueleb/Scrivania/parapy_prova/genomes/'
 
 
 if __name__ == '__main__':
