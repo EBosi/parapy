@@ -1,5 +1,6 @@
 usage = """
 	python parapy.py INPUT_FOLDER
+	REMEMBER to set up the folders inside the script!
 """
 #######################
 
@@ -7,26 +8,10 @@ import os,sys,itertools,multiprocessing,shutil
 
 #######################
 
-def cpy_inparanoid(thread_dir):
-	# list of files (ls -rt | awk '{print "\"" $9 "\"" ","}')
-	files=[	"blast_parser.pl",
-	"blosum45",
-	"blosum62",
-	"blosum80",
-	"ec",
-	"fasta_parser.log",
-	"fasta_parser_parapipe.pl",
-	"inparanoid.pl",
-	"insert_NCBI_title.pl",
-	"licence",
-	"pam30",
-	"pam70",
-	"parsoid.pl",
-	"sc",
-	"seqstat.jar",
-	"seqstat_old.jar"]
-	#
+def cpy_inparanoid(thread_dir,inparanoid_bin='/home/valerioo/parapipe/bin_orig/'):
+	files=os.listdir(inparanoid_bin)
 	for f in files:
+		f=inparanoid_bin+f
 		shutil.copy(f,thread_dir)
 
 def get_all_pairs(proteomes):
@@ -48,10 +33,11 @@ def get_outs(thread_dir):
 
 class Consumer(multiprocessing.Process):
     
-    def __init__(self, task_queue, result_queue):
+    def __init__(self, task_queue, result_queue, main='.'):
         multiprocessing.Process.__init__(self)
         self.task_queue = task_queue
         self.result_queue = result_queue
+        self.main=main
 
     def run(self):
         proc_name = self.name
@@ -63,48 +49,54 @@ class Consumer(multiprocessing.Process):
                 self.task_queue.task_done()
                 break
             print '%s: %s' % (proc_name, next_task)
-            answer = next_task()
+            #next_task.main=self.main # main directory (where result are stored)
+            #next_task.sub=proc_name # subdirectory name (same as consumer name)
+            answer = next_task() # store result of task
             self.task_queue.task_done()
+            self.result_queue.put(answer)
         return
-
-class All_pairs_queue(multiprocessing.JoinableQueue):
-	
-	def __init__(self,dir_):
-		multiprocessing.JoinableQueue.__init__(self)
-		self.dir_=dir_
-		genomes=os.listdir(dir_)
 
 class InparanoidTask(object):
 	#
-	def __init__(self,genome1,genome2,name='Parapy_task'):
+	def __init__(self,genome1,genome2,dir_,name='Parapy_task'):
 		self.name=name
+		self.dir_=dir_
 		self.g1=genome1
 		self.g2=genome2
 		self.main=''
 		self.sub =''
 	#
 	def __call__(self):
+		print 'tasking %s %s' %(self.g1,self.g2)
 		# what to do for each task:
 		#
+
 		# 1) if it doesn't exist, creat a subdir
 		if not os.path.exists(self.sub):
-			os.makedir(self.sub)
+			os.mkdir(self.sub)
+
 		# 2) copy the files in it
-		src1=self.main+self.g1
-		src2=self.main+self.g2
+		src1=self.dir_+self.g1
+		src2=self.dir_+self.g2
 		dst=self.sub
 		shutil.copy(src1,dst)
 		shutil.copy(src2,dst)
+		cpy_inparanoid(dst)
+
 		# 3) move into it and launch Inparanoid
 		os.chdir(dst)
-		os.system('inparanoid.pl %s %s' %(self.g1,self.g2))
+
+		try: os.system('./inparanoid.pl %s %s' %(self.g1,self.g2))
+		except: print '\n\n\n ERORE \n\n\n'
+
 		# 4) move outputs into main and clean
-		outputs=get_outs(self.sub)
-		for out in outputs: shutil.move(out,self.main)
-		clear_all(self.sub)
+		outputs=get_outs('.')
+		for out in outputs: shutil.copy(out,'..')
+		clear_all('.')
+
 		# 5) print success, you've done it right son!
 		print "successfully inparanoid'd %s , %s" %(self.g1,self.g2)
-		
+		# blablabla
 
 #######################
 
@@ -113,16 +105,42 @@ class InparanoidTask(object):
 
 #######################
 
-numb_consumers=5
+num_consumers=5
+# num_consumers = multiprocessing.cpu_count() * 2
+main='.'
+genome_dir='Scrivania/genomes/'
 
 
-# real main, still to implement
 if __name__ == '__main__':
-	# enqueue jobs
-	jobs = []
-	for i in range(numb_threads):
-		p = multiprocessing.Process(target=worker)
-		jobs.append(p)
-		p.start()
+
+	# Instance QueriesQueue with genome directory 
+	Q=multiprocessing.JoinableQueue() # make queue
+	Q.dir_=genome_dir # set directory with genomes
+	Q.genomes=os.listdir(Q.dir_) # list of genomes to analyze
+
+	# Instance ResultsQueue
+	R=multiprocessing.Queue()
+
+	# Start consumers
+	consumers = [Consumer(Q, R)
+					for i in xrange(num_consumers)]
+	print '%s processes running:\n%s' %(num_consumers,'\n'.join([c.name for c in consumers]))
+	for w in consumers:
+		w.start()
+
+	# Enqueue tasks
+	for p in get_all_pairs(Q.genomes):
+		Q.put(InparanoidTask(p[0],p[1],Q.dir_))
+
+	# Add a poison pill for each consumer
+	for i in xrange(num_consumers):
+		Q.put(None)
+
+
+	Q.join()
+
+	# Wait for all of the tasks to finish
+	while not Q.empty():
+		Q.get()
 
 #######################
