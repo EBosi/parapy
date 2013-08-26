@@ -93,6 +93,7 @@ class InparanoidTask(object):
 		outputs=get_outs('.')
 		for out in outputs: shutil.copy(out,'..')
 		clear_all('.')
+		os.chdir('..')
 
 		# 5) print success, you've done it right son!
 		print "successfully inparanoid'd %s , %s" %(self.g1,self.g2)
