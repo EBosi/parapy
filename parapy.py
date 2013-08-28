@@ -27,7 +27,9 @@ def clear_all(thread_dir):
 		os.remove(f)
 
 def get_outs(thread_dir):
-	outs=[out for out in os.listdir(thread_dir) if out.startswith('Output.')]
+	outs=[out for out in os.listdir(thread_dir) if
+		  (out.startswith('Output.') or out.startswith('sqltable.')
+		or out.startswith('table.')   or out.startswith('orthologs.')]
 	return outs
 #######################
 
