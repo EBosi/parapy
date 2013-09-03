@@ -1,6 +1,7 @@
+#!/usr/bin/python
+
 usage = """
-	python parapy.py INPUT_FOLDER
-	REMEMBER to set up the folders inside the script!
+	parapy INPUT_FOLDER INPARANOID_FOLDER NUM_CPUS
 """
 #######################
 
@@ -8,7 +9,7 @@ import os,sys,itertools,multiprocessing,shutil
 
 #######################
 
-def cpy_inparanoid(thread_dir,inparanoid_bin='/home/valerioo/parapipe/bin_orig/'):
+def cpy_inparanoid(thread_dir,inparanoid_bin):
 	files=os.listdir(inparanoid_bin)
 	for f in files:
 		f=inparanoid_bin+f
@@ -51,8 +52,8 @@ class Consumer(multiprocessing.Process):
                 self.task_queue.task_done()
                 break
             print '%s: %s' % (proc_name, next_task)
-            #next_task.main=self.main # main directory (where result are stored)
-            #next_task.sub=proc_name # subdirectory name (same as consumer name)
+            next_task.main=self.main # main directory (where result are stored)
+            next_task.sub=proc_name # subdirectory name (same as consumer name)
             answer = next_task() # store result of task
             self.task_queue.task_done()
             self.result_queue.put(answer)
@@ -60,9 +61,10 @@ class Consumer(multiprocessing.Process):
 
 class InparanoidTask(object):
 	#
-	def __init__(self,genome1,genome2,dir_,name='Parapy_task'):
+	def __init__(self,genome1,genome2,dir_,inpdir,name='Parapy_task'):
 		self.name=name
 		self.dir_=dir_
+		self.inpdir=inpdir
 		self.g1=genome1
 		self.g2=genome2
 		self.main=''
@@ -81,9 +83,10 @@ class InparanoidTask(object):
 		src1=self.dir_+self.g1
 		src2=self.dir_+self.g2
 		dst=self.sub
+		inpdir=self.inpdir
 		shutil.copy(src1,dst)
 		shutil.copy(src2,dst)
-		cpy_inparanoid(dst)
+		cpy_inparanoid(dst,inpdir)
 
 		# 3) move into it and launch Inparanoid
 		os.chdir(dst)
@@ -103,16 +106,17 @@ class InparanoidTask(object):
 
 #######################
 
-# Insert Options/ Options parsing here!
-# (to implement)
+if len(sys.argv) < 4:
+	print usage
+	sys.exit(1)
+
+genome_dir, inpdir, num_consumers = sys.argv[1:4]
 
 #######################
 
-num_consumers=5
+num_consumers=int(num_consumers)
 # num_consumers = multiprocessing.cpu_count() * 2
 main='.'
-genome_dir='/home/emanueleb/Scrivania/parapy_prova/genomes/'
-
 
 if __name__ == '__main__':
 
@@ -133,7 +137,7 @@ if __name__ == '__main__':
 
 	# Enqueue tasks
 	for p in get_all_pairs(Q.genomes):
-		Q.put(InparanoidTask(p[0],p[1],Q.dir_))
+		Q.put(InparanoidTask(p[0],p[1],Q.dir_,inpdir))
 
 	# Add a poison pill for each consumer
 	for i in xrange(num_consumers):
